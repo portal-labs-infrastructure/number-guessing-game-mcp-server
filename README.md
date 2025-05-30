@@ -183,9 +183,9 @@ Root MCP endpoint available at /mcp (POST, GET, DELETE)
 
 You'll need an MCP client that supports dynamic tools and resources (discovery).
 
-We've created [Portal One](https://portal.one) as a web-based MCP client that supports dynamic tools and discovery. You can use it to test the game flow.
+We created [Portal One](https://portal.one), a web-based MCP client that supports dynamic tools and discovery. You can use it to test the game flow.
 
-Make sure the server can be accessed by the client. If you're running the server locally, you can use a tool like [ngrok](https://ngrok.com/) to expose it to the internet:
+Just make sure the server can be accessed by the client. If you're running the server locally, you can use a tool like [ngrok](https://ngrok.com/) to expose it to the internet:
 
 ```bash
 ngrok http http://localhost:8080
