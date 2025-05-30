@@ -4,6 +4,8 @@
 
 A demonstration Model Context Protocol (MCP) server implemented in TypeScript, showcasing dynamic tool and resource management, stateful HTTP sessions, and clean architectural patterns (State, Command, EventEmitter). This server hosts a simple number guessing game.
 
+Checkout the article discussing the "what" and the "why" [here](https://portal.one/blog/dynamic-mcp-servers-tame-complexity/)!
+
 Here's an example of interacting with the server manually. Notice the tools change depending on the current game state.
 
 https://github.com/user-attachments/assets/8bb15870-2adc-4412-a072-4fc4eb14bbef
