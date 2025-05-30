@@ -4,6 +4,16 @@
 
 A demonstration Model Context Protocol (MCP) server implemented in TypeScript, showcasing dynamic tool and resource management, stateful HTTP sessions, and clean architectural patterns (State, Command, EventEmitter). This server hosts a simple number guessing game.
 
+Here's an example of interacting with the server manually. Notice the tools change depending on the current game state.
+
+https://github.com/user-attachments/assets/8bb15870-2adc-4412-a072-4fc4eb14bbef
+
+And a video of an agent interacting with the server. You can't see in the video, but the tools available to the agent are changing as well based on the game state.
+
+https://github.com/user-attachments/assets/d7d338a2-8a93-46c3-b4a9-1a6b4caf9dc0
+
+
+
 This project is intended as a learning resource and a practical example for a demonstration on building dynamic MCP applications.
 
 ## Table of Contents
