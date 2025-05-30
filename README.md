@@ -1,4 +1,4 @@
-# MCP Number Guessing Game Server
+# Number Guessing Game MCP Server
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -121,7 +121,7 @@ This directory is responsible for bridging the game logic with the Model Context
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/portal-labs-infrastructure/number-guessing-game-mcp-server
     cd mcp-number-guessing-game-server
     ```
 2.  **Install dependencies:**
@@ -177,6 +177,7 @@ See other clients that support dynamic MCP tools and resources (discovery) in th
 
 ## Project Structure
 
+```
 number-guessing-game-mcp-server/
 ├── build/ # Compiled JavaScript output
 ├── node_modules/
@@ -194,7 +195,7 @@ number-guessing-game-mcp-server/
 │ │ │ ├── game-state.interface.ts
 │ │ │ └── ... (specific state files)
 │ │ └── utils/
-│ │ └── game-constants.ts # Game constants (MAX_ATTEMPTS, etc.)
+│ │   └── game-constants.ts # Game constants (MAX_ATTEMPTS, etc.)
 │ ├── mcp_setup/ # Logic for setting up MCP server, tools, resources
 │ │ ├── event_handlers/ # Handlers for GameContext events (e.g., state changes)
 │ │ │ ├── game-state-change.handler.ts
@@ -210,12 +211,13 @@ number-guessing-game-mcp-server/
 │ │ └── mcp-game-server.ts # Orchestrates creation of McpServer with game logic
 │ ├── index.ts # Main application entry point (Express server setup)
 │ └── routes/
-│ └── mcpRoutes.ts # Express routes for /mcp endpoint
+│   └── mcpRoutes.ts # Express routes for /mcp endpoint
 ├── .gitignore
 ├── package.json
 ├── package-lock.json
 ├── README.md # This file
 └── tsconfig.json
+```
 
 ## Key Concepts Demonstrated
 
@@ -229,13 +231,12 @@ number-guessing-game-mcp-server/
 - **TypeScript Best Practices:** Using types for robust code, modular structure.
 - **JSON Resource Formatting:** Correctly providing JSON data as a Base64 encoded string in the `blob` field with `mimeType: "application/json"`.
 
-## Future Enhancements (Ideas)
+## Future Enhancements
 
 - Add more complex game mechanics.
-- Implement user authentication for MCP sessions.
+- Implement user authentication.
 - Persist high scores to a database.
 - Add more sophisticated error handling and reporting.
-- Introduce more resource types or more complex tool interactions.
 - Write unit and integration tests.
 
 ## Contributing
