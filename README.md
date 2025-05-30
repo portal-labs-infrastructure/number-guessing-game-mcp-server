@@ -163,7 +163,7 @@ npm start
 You should see output indicating the server is running:
 
 ```
-MCP Game Server (HTTP Stateful) listening on port 3000
+MCP Game Server (HTTP Stateful) listening on port 8080
 Root MCP endpoint available at /mcp (POST, GET, DELETE)
 ```
 
@@ -171,7 +171,13 @@ Root MCP endpoint available at /mcp (POST, GET, DELETE)
 
 You'll need an MCP client that supports dynamic tools and resources (discovery).
 
-We've created [Portal One](https://portal.one) as a web-based client that supports dynamic tools and discovery. You can use it to test the game flow.
+We've created [Portal One](https://portal.one) as a web-based MCP client that supports dynamic tools and discovery. You can use it to test the game flow.
+
+Make sure the server can be accessed by the client. If you're running the server locally, you can use a tool like [ngrok](https://ngrok.com/) to expose it to the internet:
+
+```bash
+ngrok http http://localhost:8080
+```
 
 See other clients that support dynamic MCP tools and resources (discovery) in the [MCP SDK Example Clinets](https://modelcontextprotocol.io/clients).
 
