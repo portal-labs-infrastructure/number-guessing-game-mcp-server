@@ -192,6 +192,7 @@ See other clients that support dynamic MCP tools and resources (discovery) in th
 number-guessing-game-mcp-server/
 ├── build/ # Compiled JavaScript output
 ├── node_modules/
+├── assets # Static assets served as resources with various mimeTypes
 ├── src/
 │ ├── controllers/
 │ │ └── mcpController.ts # Express controller for HTTP session & request handling
@@ -219,7 +220,7 @@ number-guessing-game-mcp-server/
 │ │ │ ├── setup-guess-number-tool.ts
 │ │ │ ├── ... (other tool setup files)
 │ │ │ └── index.ts
-│ │ └── mcp-game-server.ts # Orchestrates creation of McpServer with game logic
+│ │ └── index.ts # Orchestrates creation of McpServer with game logic
 │ ├── index.ts # Main application entry point (Express server setup)
 │ └── routes/
 │   └── mcpRoutes.ts # Express routes for /mcp endpoint
