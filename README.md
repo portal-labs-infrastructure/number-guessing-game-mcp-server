@@ -16,8 +16,6 @@ And a video of an agent interacting with the server. You can't see in the video,
 
 https://github.com/user-attachments/assets/d7d338a2-8a93-46c3-b4a9-1a6b4caf9dc0
 
-
-
 This project is intended as a learning resource and a practical example for a demonstration on building dynamic MCP applications.
 
 ## Table of Contents
@@ -34,14 +32,7 @@ This project is intended as a learning resource and a practical example for a de
     - [Installation](#installation)
     - [Configuration (Optional)](#configuration-optional)
 5.  [Running the Server](#running-the-server)
-6.  [Interacting with the Server (API Guide)](#interacting-with-the-server-api-guide)
-    - [1. Initialize a Session](#1-initialize-a-session)
-    - [2. List Available Tools & Resources](#2-list-available-tools--resources)
-    - [3. Start a Game](#3-start-a-game)
-    - [4. Play the Game (Make a Guess)](#4-play-the-game-make-a-guess)
-    - [5. Give Up](#5-give-up)
-    - [6. Receiving Server-Sent Events (SSE)](#6-receiving-server-sent-events-sse)
-    - [7. End a Session](#7-end-a-session)
+6.  [Interacting with the Server](#interacting-with-the-server)
 7.  [Project Structure](#project-structure)
 8.  [Key Concepts Demonstrated](#key-concepts-demonstrated)
 9.  [Future Enhancements (Ideas)](#future-enhancements-ideas)
