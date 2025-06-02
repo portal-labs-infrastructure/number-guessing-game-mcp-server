@@ -23,6 +23,10 @@ export interface McpEntities {
   server: McpServer;
   highscoresResource: RegisteredResource | null;
   gameStateResource: RegisteredResource | null;
+  gameRulesResource: RegisteredResource | null;
+  bannerImageResource: RegisteredResource | null;
+  simpleHtmlPageResource: RegisteredResource | null;
+
   startGameTool: RegisteredTool | null;
   guessNumberTool: RegisteredTool | null;
   giveUpTool: RegisteredTool | null;

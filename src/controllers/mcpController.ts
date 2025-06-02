@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { createGameServerInstance } from '../mcp_setup/mcp-game-server';
+import { createGameServerInstance } from '../mcp_setup';
 
 interface GameSession {
   server: McpServer;
