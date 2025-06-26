@@ -6,6 +6,6 @@ export class GiveUpCommand implements ICommand {
   constructor(private context: GameContext) {}
 
   async execute(): Promise<CommandResult> {
-    return this.context.giveUp();
+    return await this.context.giveUp();
   }
 }

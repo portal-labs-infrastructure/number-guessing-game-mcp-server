@@ -7,9 +7,12 @@ interface GuessNumberPayload {
 }
 
 export class GuessNumberCommand implements ICommand {
-  constructor(private context: GameContext, private payload: GuessNumberPayload) {}
+  constructor(
+    private context: GameContext,
+    private payload: GuessNumberPayload,
+  ) {}
 
   async execute(): Promise<CommandResult> {
-    return this.context.makeGuess(this.payload.guess);
+    return await this.context.makeGuess(this.payload.guess);
   }
 }

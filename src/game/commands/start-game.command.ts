@@ -7,9 +7,12 @@ interface StartGamePayload {
 }
 
 export class StartGameCommand implements ICommand {
-  constructor(private context: GameContext, private payload: StartGamePayload) {}
+  constructor(
+    private context: GameContext,
+    private payload: StartGamePayload,
+  ) {}
 
   async execute(): Promise<CommandResult> {
-    return this.context.startGame(this.payload.playerName);
+    return await this.context.startGame(this.payload.playerName);
   }
 }

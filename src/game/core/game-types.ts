@@ -1,3 +1,4 @@
+import { Timestamp } from '@google-cloud/firestore';
 import {
   McpServer,
   RegisteredResource,
@@ -17,6 +18,15 @@ export interface ActiveGame {
   minGuess: number;
   maxGuess: number;
   lastMessage: string;
+}
+
+// NEW: Represents the structure of a session document in Firestore
+export interface GameSession {
+  id: string;
+  stateName: string; // e.g., 'LobbyState', 'PlayingState'
+  currentGame: ActiveGame | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface McpEntities {

@@ -6,43 +6,64 @@ import { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// --- Cache for the HTML content ---
+let cachedHtmlContent: ReadResourceResult | null = null;
+
+/**
+ * Creates a resource that serves a simple, static HTML page.
+ * This version caches the HTML content in memory after the first read.
+ * @param server The McpServer instance.
+ * @param resourceUriString The full URI for this resource.
+ * @returns The RegisteredResource object.
+ */
 export function setupSimpleHtmlPageResource(
   server: McpServer,
   resourceUriString: string,
 ): RegisteredResource {
   return server.resource(
-    'simple_interactive_page', // The 'name' or path segment for this resource type
-    resourceUriString, // The full, unique URI for this specific resource instance
+    'simple_interactive_page',
+    resourceUriString,
     { description: 'A simple interactive HTML page with JavaScript.' },
     async (uri: URL): Promise<ReadResourceResult> => {
-      const htmlFilePath = path.resolve(
-        __dirname,
-        '../../../assets/simple_interactive.html',
-      );
+      // Serve from cache if available.
+      if (cachedHtmlContent) {
+        console.log('[HtmlPageResource] Serving HTML page from cache.');
+        return cachedHtmlContent;
+      }
 
+      // --- First-time read and cache population ---
       console.log(
-        `[setupSimpleHtmlPageResource] Reading HTML file from: ${htmlFilePath}`,
+        '[HtmlPageResource] Cache miss. Reading HTML page from filesystem.',
       );
+      try {
+        // Use process.cwd() for a reliable path from the project root.
+        const htmlFilePath = path.resolve(
+          process.cwd(),
+          'assets/simple_interactive.html',
+        );
+        const htmlString = await fs.readFile(htmlFilePath, 'utf-8');
 
-      // Read the HTML file content as a UTF-8 string
-      const htmlString = await fs.readFile(htmlFilePath, 'utf-8');
+        const result: ReadResourceResult = {
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: 'text/html',
+              text: htmlString,
+            },
+          ],
+        };
 
-      console.log(
-        `[setupSimpleHtmlPageResource] HTML content length: ${htmlString.length} characters.`,
-      );
-      console.log(
-        `[setupSimpleHtmlPageResource] HTML content snippet: ${htmlString.substring(0, 200)}...`,
-      );
+        // Store the result in the cache for the next request.
+        cachedHtmlContent = result;
+        console.log(
+          '[HtmlPageResource] HTML page content cached successfully.',
+        );
 
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'text/html',
-            text: htmlString,
-          },
-        ],
-      };
+        return result;
+      } catch (error) {
+        console.error('[HtmlPageResource] Failed to read HTML file:', error);
+        throw new Error('Server error: Could not load interactive page.');
+      }
     },
   );
 }

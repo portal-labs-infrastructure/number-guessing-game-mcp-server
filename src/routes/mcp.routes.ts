@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   handleMcpPost,
   handleMcpSessionManagement,
-} from '../controllers/mcpController';
+} from '../controllers/mcp.controller';
 
 const router = Router();
 

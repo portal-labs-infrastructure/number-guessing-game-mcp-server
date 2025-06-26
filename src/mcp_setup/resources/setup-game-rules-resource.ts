@@ -3,44 +3,71 @@ import {
   RegisteredResource,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import * as fs from 'fs/promises'; // For reading the PDF file asynchronously
-import * as path from 'path'; // For constructing the file path correctly
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
+// --- Cache for the PDF content ---
+// This will hold the prepared resource content after the first read.
+let cachedRulesContent: ReadResourceResult | null = null;
+
+/**
+ * Creates a resource that serves the game rules PDF.
+ * This version caches the PDF content in memory after the first read for efficiency.
+ * @param server The McpServer instance.
+ * @param resourceUriString The full URI for this resource.
+ * @returns The RegisteredResource object.
+ */
 export function setupGameRulesResource(
   server: McpServer,
-  uriString: string,
+  resourceUriString: string,
 ): RegisteredResource {
   return server.resource(
     'game_rules',
-    uriString,
+    resourceUriString,
     { description: 'The official rules for the Guessing Game (PDF format).' },
     async (uri: URL): Promise<ReadResourceResult> => {
-      // Construct the absolute path to the PDF file
-      // __dirname is the directory of the current module (where this .ts/.js file is)
-      // Adjust the relative path '../../assets/rules.pdf' as needed based on your project structure
-      const pdfFilePath = path.resolve(__dirname, '../../../assets/rules.pdf');
+      // If the content is already cached, return it immediately.
+      if (cachedRulesContent) {
+        console.log('[GameRulesResource] Serving rules PDF from cache.');
+        return cachedRulesContent;
+      }
 
+      // --- First-time read and cache population ---
       console.log(
-        `[setupGameRulesResource] Reading PDF file from: ${pdfFilePath}`,
+        '[GameRulesResource] Cache miss. Reading rules PDF from filesystem.',
       );
+      try {
+        // Use process.cwd() for a more reliable path from the project root.
+        // Assumes you run your script from the project root directory.
+        const pdfFilePath = path.resolve(process.cwd(), 'assets/rules.pdf');
+        const pdfBuffer = await fs.readFile(pdfFilePath);
+        const base64EncodedBlob = pdfBuffer.toString('base64');
 
-      // Read the PDF file into a buffer
-      const pdfBuffer = await fs.readFile(pdfFilePath);
+        // Prepare the result object that will be cached.
+        const result: ReadResourceResult = {
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: 'application/pdf',
+              blob: base64EncodedBlob,
+            },
+          ],
+        };
 
-      // Encode the buffer to a Base64 string
-      const base64EncodedBlob = pdfBuffer.toString('base64');
+        // Store the result in our cache for subsequent requests.
+        cachedRulesContent = result;
+        console.log(
+          '[GameRulesResource] Rules PDF content cached successfully.',
+        );
 
-      console.log(base64EncodedBlob);
-
-      return {
-        contents: [
-          {
-            uri: uri.href, // Use the URI passed to the handler
-            mimeType: 'application/pdf',
-            blob: base64EncodedBlob,
-          },
-        ],
-      };
+        return result;
+      } catch (error) {
+        console.error(
+          '[GameRulesResource] Failed to read rules PDF file:',
+          error,
+        );
+        throw new Error('Server error: Could not load game rules.');
+      }
     },
   );
 }

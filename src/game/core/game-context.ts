@@ -1,38 +1,76 @@
-import { EventEmitter } from 'events';
 import { IGameState } from '../states/game-state.interface';
 import { LobbyState } from '../states/lobby.state';
+import { PlayingState } from '../states/playing.state';
 import { ActiveGame, McpEntities, HighScoreEntry } from './game-types';
-import { SHARED_HIGH_SCORES } from '../utils/game-constants';
 import { z } from 'zod';
+import { GameSessionService } from './game-session-service';
 
-export const GameContextEvents = {
-  STATE_CHANGED: 'stateChanged',
+const stateClassMap: { [key: string]: new () => IGameState } = {
+  [LobbyState.name]: LobbyState,
+  [PlayingState.name]: PlayingState,
 };
 
-export class GameContext extends EventEmitter {
-  private _currentState: IGameState;
+export class GameContext {
+  private _currentState!: IGameState;
   public currentGame: ActiveGame | null = null;
-  public readonly mcpEntities: McpEntities;
-  public highScores: HighScoreEntry[];
-  private readonly serverInstanceName: string; // Store the specific server name
+  public highScores: HighScoreEntry[] = [];
 
-  constructor(mcpEntities: McpEntities, serverInstanceName: string) {
-    // Accept serverInstanceName
-    super();
+  public readonly mcpEntities: McpEntities;
+  public readonly sessionId: string;
+  private readonly sessionService: GameSessionService;
+  private readonly serverInstanceName: string;
+
+  private constructor(
+    sessionId: string,
+    sessionService: GameSessionService,
+    mcpEntities: McpEntities,
+    serverInstanceName: string,
+  ) {
+    this.sessionId = sessionId;
+    this.sessionService = sessionService;
     this.mcpEntities = mcpEntities;
-    this.serverInstanceName = serverInstanceName; // Use this for logging
-    this.highScores = [...SHARED_HIGH_SCORES];
-    this._currentState = new LobbyState();
+    this.serverInstanceName = serverInstanceName;
+  }
+
+  public static async create(
+    sessionId: string,
+    sessionService: GameSessionService,
+    mcpEntities: McpEntities,
+    serverInstanceName: string,
+  ): Promise<GameContext> {
+    const context = new GameContext(
+      sessionId,
+      sessionService,
+      mcpEntities,
+      serverInstanceName,
+    );
+    await context.loadState();
+    return context;
+  }
+
+  private async loadState(): Promise<void> {
+    console.log(
+      `[GameContext-${this.serverInstanceName}] Loading state for session: ${this.sessionId}`,
+    );
+    const [session, highScores] = await Promise.all([
+      this.sessionService.getSession(this.sessionId),
+      this.sessionService.getHighScores(),
+    ]);
+
+    this.currentGame = session.currentGame;
+    this.highScores = highScores;
+
+    const StateClass = stateClassMap[session.stateName];
+    if (!StateClass) {
+      throw new Error(
+        `Unknown state name loaded from DB: ${session.stateName}`,
+      );
+    }
+    this._currentState = new StateClass();
   }
 
   public initializeStateLogic(): void {
-    // This method is called by mcp-game-server AFTER listeners are attached.
-    // 1. Emit event for the initial state, so listeners can set up resources.
-    this.emit(GameContextEvents.STATE_CHANGED, {
-      newState: this._currentState,
-      context: this,
-    });
-    // 2. Now call enter() on the initial state.
+    // This method now only calls enter(). The emit is gone.
     this._currentState.enter(this);
   }
 
@@ -40,26 +78,43 @@ export class GameContext extends EventEmitter {
     return this._currentState;
   }
 
-  public transitionTo(state: IGameState): void {
+  public async transitionTo(state: IGameState): Promise<void> {
     const oldStateName = this._currentState.constructor.name;
+    const newStateName = state.constructor.name;
     console.log(
-      `[GameContext-${this.serverInstanceName}] Transitioning from ${oldStateName} to ${state.constructor.name}`,
+      `[GameContext-${this.serverInstanceName}] Transitioning from ${oldStateName} to ${newStateName} for session ${this.sessionId}`,
     );
 
     this._currentState.exit(this);
     this._currentState = state;
 
-    // 1. Emit the event that the state has changed.
-    // Listeners (like the resource manager) will react to this.
-    this.emit(GameContextEvents.STATE_CHANGED, {
-      newState: this._currentState,
-      context: this,
+    await this.sessionService.updateSession(this.sessionId, {
+      stateName: newStateName,
     });
 
-    // 2. Now, call the new state's enter() method.
-    // By this time, listeners for STATE_CHANGED should have completed their synchronous work (like resource creation).
     this._currentState.enter(this);
   }
+
+  // This method now persists the new game state to Firestore
+  public async updateAndPersistGame(
+    gameData: ActiveGame | null,
+  ): Promise<void> {
+    this.currentGame = gameData;
+    await this.sessionService.updateSession(this.sessionId, {
+      currentGame: gameData,
+    });
+    this.signalGameStateContentUpdate();
+  }
+
+  // This method now persists the new high score to Firestore
+  public async addNewHighScore(entry: HighScoreEntry): Promise<void> {
+    await this.sessionService.addHighScore(entry);
+    // Reload high scores to reflect the change immediately
+    this.highScores = await this.sessionService.getHighScores();
+    this.signalHighScoresContentUpdate();
+  }
+
+  // --- The rest of the methods mostly delegate or remain the same ---
 
   public getHighScoresData(): HighScoreEntry[] {
     return [...this.highScores]
@@ -72,30 +127,18 @@ export class GameContext extends EventEmitter {
   }
 
   public getGameStateUIDataForResource(): object | null {
-    // Delegate to current state to get UI-specific data for the resource
     return this._currentState.getGameStateUIData(this);
   }
 
   public signalGameStateContentUpdate(): void {
     if (this.mcpEntities.gameStateResource) {
       this.mcpEntities.gameStateResource.update({});
-      console.log(
-        `[GameContext-${this.serverInstanceName}] Signaled game_state resource content update.`,
-      );
-    } else {
-      console.warn(
-        `[GameContext-${this.serverInstanceName}] Tried to signal game_state update, but resource is null.`,
-      );
     }
   }
 
   public signalHighScoresContentUpdate(): void {
     if (this.mcpEntities.highscoresResource) {
-      // Check if resource exists
       this.mcpEntities.highscoresResource.update({});
-      console.log(
-        `[GameContext-${this.serverInstanceName}] Signaled highscores resource content update.`,
-      );
     }
   }
 
@@ -104,6 +147,7 @@ export class GameContext extends EventEmitter {
     maxGuess: number,
     currentAttempts: number,
   ): void {
+    // This logic remains the same as it affects runtime MCP objects
     if (this.mcpEntities.guessNumberTool) {
       this.mcpEntities.guessNumberTool.update({
         paramsSchema: {
@@ -117,12 +161,10 @@ export class GameContext extends EventEmitter {
             ),
         },
       });
-      console.log(
-        `[GameContext-${this.serverInstanceName}] Updated guess_number tool schema.`,
-      );
     }
   }
 
+  // These methods must now be async as they trigger DB writes
   public async startGame(playerName: string) {
     return this._currentState.startGame(this, playerName);
   }

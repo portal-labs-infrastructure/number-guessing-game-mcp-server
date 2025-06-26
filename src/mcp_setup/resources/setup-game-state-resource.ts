@@ -2,47 +2,33 @@ import {
   McpServer,
   RegisteredResource,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { GameContext } from '../../game/core/game-context';
-import { Buffer } from 'buffer'; // Ensure Buffer is available for blobification
+import { McpEntities } from '../../game/core/game-types';
+import { GameSessionService } from '../../game/core/game-session-service';
+// Import our new resource factory
+import { createGameResourceHandler } from '../../game/core/resource-factory';
 
-export function createGameStateResource(
+export function setupGameStateResource(
   server: McpServer,
-  gameContext: GameContext,
-  uriString: string,
+  sessionService: GameSessionService,
+  mcpEntities: McpEntities,
+  serverName: string,
+  resourceUriString: string,
 ): RegisteredResource {
+  // The core logic for getting the game state UI data.
+  // The signature is now just (gameContext) => object | null.
+  const gameStateLogic = (gameContext: GameContext) => {
+    return gameContext.getGameStateUIDataForResource();
+  };
+
   return server.resource(
     'game_state',
-    uriString,
-    { description: 'Current game state data.' },
-    async (uri: URL): Promise<ReadResourceResult> => {
-      const dataObject = gameContext.getGameStateUIDataForResource();
-      if (!dataObject) {
-        return {
-          contents: [
-            {
-              uri: uri.href,
-              text: 'Game not active or state unavailable.',
-            },
-          ],
-        };
-      }
-
-      const jsonString = JSON.stringify(dataObject);
-      // Create a buffer from the JSON string
-      const dataBuffer = Buffer.from(jsonString, 'utf-8');
-      // Encode the buffer to a Base64 string
-      const base64EncodedBlob = dataBuffer.toString('base64');
-
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            blob: base64EncodedBlob, // Use the Base64 encoded string
-          },
-        ],
-      };
-    },
+    resourceUriString,
+    { description: 'Current game state data for your session.' },
+    // Use the factory to wrap our logic with the context and response boilerplate
+    createGameResourceHandler(
+      { sessionService, mcpEntities, serverName },
+      gameStateLogic,
+    ),
   );
 }

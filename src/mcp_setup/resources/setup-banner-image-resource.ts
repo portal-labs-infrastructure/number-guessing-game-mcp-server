@@ -3,56 +3,69 @@ import {
   RegisteredResource,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import * as fs from 'fs/promises'; // For reading the image file asynchronously
-import * as path from 'path'; // For constructing the file path correctly
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+// --- Cache ---
+// We'll store the prepared resource content here after the first read.
+let cachedBannerContent: ReadResourceResult | null = null;
 
 /**
  * Creates a resource that serves the banner image.
+ * This version caches the image content in memory after the first read to improve performance.
  * @param server The McpServer instance.
- * @param baseUriString The base URI string for the server (e.g., "mcp://YourGameServerName").
+ * @param resourceUriString The full URI for this resource.
  * @returns The RegisteredResource object.
  */
 export function setupBannerImageResource(
   server: McpServer,
-  resourceUriString: string, // e.g., "mcp://YourGameServerName"
+  resourceUriString: string,
 ): RegisteredResource {
   return server.resource(
-    'banner_image', // The name part of the URI path for the resource
+    'banner_image',
     resourceUriString,
     { description: 'The official banner image for the Guessing Game.' },
     async (uri: URL): Promise<ReadResourceResult> => {
-      const imageFilePath = path.resolve(
-        __dirname,
-        '../../../assets/banner.webp',
-      );
+      // If we already have the content in our cache, return it immediately.
+      if (cachedBannerContent) {
+        console.log('[BannerResource] Serving banner from cache.');
+        return cachedBannerContent;
+      }
 
+      // --- First-time read and cache population ---
       console.log(
-        `[setupBannerImageResource] Reading image file from: ${imageFilePath}`,
+        '[BannerResource] Cache miss. Reading banner from filesystem.',
       );
+      try {
+        // Make sure the path is correct relative to the execution directory.
+        // This assumes you run your script from the project root.
+        const imageFilePath = path.resolve(process.cwd(), 'assets/banner.webp');
+        const imageBuffer = await fs.readFile(imageFilePath);
+        const base64EncodedBlob = imageBuffer.toString('base64');
 
-      // Read the image file into a buffer
-      const imageBuffer = await fs.readFile(imageFilePath);
+        // Prepare the result object
+        const result: ReadResourceResult = {
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: 'image/webp',
+              blob: base64EncodedBlob,
+            },
+          ],
+        };
 
-      // Encode the buffer to a Base64 string
-      const base64EncodedBlob = imageBuffer.toString('base64');
+        // Store it in the cache for subsequent requests.
+        cachedBannerContent = result;
+        console.log('[BannerResource] Banner content cached successfully.');
 
-      // Log only a snippet for large images to avoid flooding console
-      console.log(
-        `[setupBannerImageResource] Base64 Encoded Image Blob (first 60 chars): ${base64EncodedBlob.substring(0, 60)}...`,
-      );
-      console.log(
-        `[setupBannerImageResource] Image Buffer Length: ${imageBuffer.length}, Base64 Length: ${base64EncodedBlob.length}`,
-      );
-
-      return {
-        contents: [
-          {
-            uri: uri.href, // Use the URI passed to the handler
-            mimeType: 'image/webp', // Correct MIME type for a webp image
-            blob: base64EncodedBlob,
-          },
-        ],
-      };
+        return result;
+      } catch (error) {
+        console.error(
+          '[BannerResource] Failed to read banner image file:',
+          error,
+        );
+        throw new Error('Server error: Could not load banner image.');
+      }
     },
   );
 }

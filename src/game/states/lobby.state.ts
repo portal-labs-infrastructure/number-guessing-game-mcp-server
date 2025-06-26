@@ -9,33 +9,27 @@ import {
 import { CommandResult } from '../core/game-types';
 
 export class LobbyState implements IGameState {
-  enter(context: GameContext): void {
-    if (!context.mcpEntities.startGameTool) {
-      console.error(
-        `[LobbyState-${context['serverInstanceName']}] Start game tool not found in MCP entities.`,
-      );
-      return;
+  async enter(context: GameContext): Promise<void> {
+    if (context.mcpEntities.startGameTool) {
+      context.mcpEntities.startGameTool.enable();
     }
-    context.mcpEntities.startGameTool.enable();
-    if (context.mcpEntities.guessNumberTool)
+    if (context.mcpEntities.guessNumberTool) {
       context.mcpEntities.guessNumberTool.disable();
-    if (context.mcpEntities.giveUpTool)
+    }
+    if (context.mcpEntities.giveUpTool) {
       context.mcpEntities.giveUpTool.disable();
-    context.currentGame = null;
-    // gameStateResource removal is handled by the event listener in mcp_setup
+    }
+    // NEW: Explicitly clear the game state in Firestore when entering the lobby.
+    await context.updateAndPersistGame(null);
     console.log(
       `[LobbyState-${context['serverInstanceName']}] Entered. Start game tool enabled.`,
     );
   }
 
   exit(context: GameContext): void {
-    if (!context.mcpEntities.startGameTool) {
-      console.error(
-        `[LobbyState-${context['serverInstanceName']}] Start game tool not found in MCP entities.`,
-      );
-      return;
+    if (context.mcpEntities.startGameTool) {
+      context.mcpEntities.startGameTool.disable();
     }
-    context.mcpEntities.startGameTool.disable();
     console.log(
       `[LobbyState-${context['serverInstanceName']}] Exited. Start game tool disabled.`,
     );
@@ -47,7 +41,8 @@ export class LobbyState implements IGameState {
   ): Promise<CommandResult> {
     const targetNumber =
       Math.floor(Math.random() * GUESS_RANGE_MAX) + GUESS_RANGE_MIN;
-    context.currentGame = {
+
+    const newGame = {
       playerName,
       targetNumber,
       attemptsLeft: MAX_ATTEMPTS,
@@ -55,12 +50,19 @@ export class LobbyState implements IGameState {
       maxGuess: GUESS_RANGE_MAX,
       lastMessage: `Welcome, ${playerName}! Guess ${GUESS_RANGE_MIN}-${GUESS_RANGE_MAX}. ${MAX_ATTEMPTS} attempts.`,
     };
+
+    // NEW: Persist the new game state to Firestore before transitioning.
+    await context.updateAndPersistGame(newGame);
+
     console.log(
       `[LobbyState-${context['serverInstanceName']}] Game started for ${playerName}. Target: ${targetNumber}`,
     );
-    context.transitionTo(new PlayingState()); // This will trigger event for resource creation
+
+    // NEW: Await the transition, as it's now an async operation.
+    await context.transitionTo(new PlayingState());
+
     return {
-      content: [{ type: 'text', text: context.currentGame.lastMessage }],
+      content: [{ type: 'text', text: newGame.lastMessage }],
     };
   }
 

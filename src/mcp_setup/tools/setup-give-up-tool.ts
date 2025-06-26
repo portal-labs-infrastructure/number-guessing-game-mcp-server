@@ -2,20 +2,36 @@ import {
   McpServer,
   RegisteredTool,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { GameContext } from '../../game/core/game-context';
 import { GiveUpCommand } from '../../game/commands/give-up.command';
+import { McpEntities } from '../../game/core/game-types';
+import { GameSessionService } from '../../game/core/game-session-service';
+// Import our new factory function
+import { createGameToolHandler } from '../../game/core/tool-factory';
 
 export function setupGiveUpTool(
   server: McpServer,
-  gameContext: GameContext,
+  sessionService: GameSessionService,
+  mcpEntities: McpEntities,
+  serverName: string,
 ): RegisteredTool {
-  return server.tool(
+  // The core logic for giving up. Note the payload is an empty object.
+  const giveUpLogic = async (payload: {}, gameContext: GameContext) => {
+    const cmd = new GiveUpCommand(gameContext);
+    return cmd.execute();
+  };
+
+  return server.registerTool(
     'give_up',
-    {}, // Corresponds to z.object({})
-    async (): Promise<CallToolResult> => {
-      const cmd = new GiveUpCommand(gameContext);
-      return cmd.execute();
-    },
+    {
+      title: 'Give Up',
+      description: 'End the game session and reveal the number.',
+      inputSchema: {}, // No parameters needed for this action
+    }, // No parameters
+    // Use the factory to wrap our logic with the context creation boilerplate
+    createGameToolHandler(
+      { sessionService, mcpEntities, serverName },
+      giveUpLogic,
+    ),
   );
 }
