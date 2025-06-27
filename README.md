@@ -2,7 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A demonstration Model Context Protocol (MCP) server implemented in TypeScript, showcasing dynamic tool and resource management, stateful HTTP sessions, and clean architectural patterns (State, Command, EventEmitter). This server hosts a simple number guessing game.
+A demonstration Model Context Protocol (MCP) server implemented in TypeScript. It showcases a dynamic, session-based architecture where each user gets their own set of tools and resources, managed by a central controller. This server hosts a simple number guessing game.
+
+Access it at: [https://mcp.number-guessing-game.portal.one/mcp](https://mcp.number-guessing-game.portal.one/mcp)
+
+Find more remote servers at: [https://remote-mcp-servers.com/](https://remote-mcp-servers.com/)
 
 Read our article talking about the benefits of dynamic MCP servers:
 
@@ -16,109 +20,63 @@ And a video of an agent interacting with the server. You can't see in the video,
 
 https://github.com/user-attachments/assets/d7d338a2-8a93-46c3-b4a9-1a6b4caf9dc0
 
-This project is intended as a learning resource and a practical example for a demonstration on building dynamic MCP applications.
+This project is intended as a learning resource and a practical example for building dynamic, multi-user MCP applications.
 
 ## Table of Contents
 
 1.  [Key Features](#key-features)
 2.  [Architectural Overview](#architectural-overview)
-    - [Core MCP Server](#core-mcp-server)
-    - [Game Logic (`/game`)](#game-logic-game)
-    - [MCP Setup (`/mcp_setup`)](#mcp-setup-mcp_setup)
-    - [HTTP Controller (`/controllers`)](#http-controller-controllers)
-    - [Event-Driven Updates](#event-driven-updates)
 3.  [Prerequisites](#prerequisites)
 4.  [Getting Started](#getting-started)
-    - [Installation](#installation)
-    - [Configuration (Optional)](#configuration-optional)
 5.  [Running the Server](#running-the-server)
 6.  [Interacting with the Server](#interacting-with-the-server)
 7.  [Project Structure](#project-structure)
 8.  [Key Concepts Demonstrated](#key-concepts-demonstrated)
-9.  [Future Enhancements (Ideas)](#future-enhancements-ideas)
-10. [Contributing](#contributing)
-11. [License](#license)
+9.  [Contributing](#contributing)
+10. [License](#license)
 
 ## Key Features
 
-- **Stateful HTTP Sessions:** Each client connection via HTTP maintains its own game state.
-- **Dynamic MCP Tools:**
-  - Tools (`start_game`, `guess_number`, `give_up`) become available/unavailable based on the game state.
-  - The `guess_number` tool's input schema dynamically updates to reflect valid guess ranges.
-- **Dynamic MCP Resources:**
-  - A `game_state` resource appears when a game starts and disappears when it ends.
-  - A `highscores` resource updates when a game is won.
-- **Clean Architecture:**
-  - **State Pattern:** Manages the game's flow (Lobby, Playing).
-  - **Command Pattern:** Encapsulates actions triggered by MCP tools.
-  - **EventEmitter:** Decouples game logic from MCP-specific resource management.
+- **True Multi-User Sessions:** Each connecting user gets their own isolated game state and set of MCP entities.
+- **Dynamic MCP Tools:** Tools (`start_game`, `guess_number`, `give_up`) are enabled or disabled on a per-user basis, reflecting their individual game state.
+- **Dynamic MCP Resources:** The `game_state` resource is created and destroyed per-user as they start and end games.
+- **Clean, Scalable Architecture:**
+  - A **single global `McpServer`** handles all connections.
+  - An **Express.js controller** manages the lifecycle of each user session.
+  - **Session-scoped entities** (tools, resources, game logic) are created on-demand.
+  - **State Pattern:** Manages the game's flow (Lobby, Playing) for each user.
 - **TypeScript Implementation:** Fully typed for better maintainability and developer experience.
-- **MCP SDK Usage:** Demonstrates practical use of the `@modelcontextprotocol/sdk`.
-- **JSON Resource Content:** Shows how to serve structured data as JSON, correctly formatting it as a Base64 encoded string in the `blob` field with `mimeType: "application/json"`.
+- **Firestore Integration:** Persists game state and high scores, making the server stateless and scalable.
 
 ## Architectural Overview
 
-This server is designed with a separation of concerns to keep the codebase organized and maintainable.
+The server follows a modern, scalable pattern where a central controller manages ephemeral, session-specific resources.
 
-### Core MCP Server
+1.  **Global Server (`src/mcp_setup.ts`):** A **single, global `McpServer`** instance is created when the application starts. It acts as a "blank slate" connection manager and does not contain any tools or resources itself.
 
-- An instance of `McpServer` from the `@modelcontextprotocol/sdk` is created for each active HTTP session.
-- This server instance is responsible for handling the MCP communication with a single client.
+2.  **HTTP Controller (`src/controllers/mcpController.ts`):** This is the brain of the application.
 
-### Game Logic (`/game`)
+    - It handles all incoming HTTP requests to the `/mcp` endpoint.
+    - When a new user connects, it creates a `StreamableHTTPServerTransport`.
+    - It uses the transport's lifecycle hooks (`onsessioninitialized` and `onclose`) to manage the user's session.
 
-This directory contains the core business logic for the number guessing game, independent of MCP specifics.
+3.  **Session Initialization (`onsessioninitialized`):** When a user's transport is ready, the controller:
 
-- **`GameContext` (`/game/core/game-context.ts`):**
-  - The central coordinator for a single game session.
-  - Holds the current game data (`ActiveGame`), high scores, and references to MCP entities (tools, resources) relevant to this session.
-  - Manages transitions between game states using the State pattern.
-  - Extends `EventEmitter` to announce state changes.
-- **State Pattern (`/game/states`):**
-  - Defines different states the game can be in (e.g., `LobbyState`, `PlayingState`).
-  - Each state (`IGameState` implementations) controls:
-    - Which actions (tool invocations) are valid.
-    - How game data is modified.
-    - Which MCP tools should be enabled/disabled.
-    - What data the `game_state` resource should expose.
-- **Command Pattern (`/game/commands`):**
-  - Each user action initiated via an MCP tool (e.g., starting a game, making a guess) is encapsulated as a command (`ICommand` implementations like `StartGameCommand`, `GuessNumberCommand`).
-  - Commands interact with the `GameContext` to modify game data and trigger state transitions.
-  - Tool handlers in the MCP setup layer create and execute these commands.
+    - Creates a **new, unique set of MCP entities** (tools and resources) for that user by calling the setup functions in `src/tools` and `src/resources`.
+    - Creates a **new `GameContext`** instance, linking it to the user's session ID and their unique MCP entities.
+    - Loads the user's state from Firestore and uses the State Pattern (`LobbyState` or `PlayingState`) to enable/disable the correct tools for their session.
 
-### MCP Setup (`/mcp_setup`)
+4.  **Session Destruction (`onclose`):** When a user disconnects, the controller:
+    - **Unregisters and destroys** all tools and resources that were created for that specific user, preventing memory leaks.
+    - Cleans up the transport from its list of active connections.
 
-This directory is responsible for bridging the game logic with the Model Context Protocol.
-
-- **`mcp-game-server.ts`:** Contains `createGameServerInstance()`, the factory function that:
-  - Creates an `McpServer` instance.
-  - Instantiates the `GameContext`.
-  - Sets up MCP tools by linking them to game commands (see `/mcp_setup/tools`).
-  - Sets up static MCP resources (like `highscores`) and links their getters to `GameContext` (see `/mcp_setup/resources`).
-  - Registers event listeners to handle dynamic resource management.
-- **Tool Setup (`/mcp_setup/tools`):** Modular functions for defining each MCP tool, its schema, and its handler (which typically executes a game command).
-- **Resource Setup (`/mcp_setup/resources`):** Modular functions for defining MCP resources, their URIs, metadata, and getter functions.
-- **Event Handlers (`/mcp_setup/event_handlers`):**
-  - `game-state-change.handler.ts`: Listens to `STATE_CHANGED` events from `GameContext`. Based on the new game state, it dynamically adds or removes the `game_state` MCP resource.
-
-### HTTP Controller (`/controllers`)
-
-- **`mcpController.ts`:** An Express.js controller that handles HTTP requests to the `/mcp` endpoint.
-  - Manages `StreamableHTTPServerTransport` instances for each session.
-  - Handles session initialization, reuse, and termination using the `mcp-session-id` header.
-  - For new sessions, it calls `createGameServerInstance()` to set up a dedicated MCP server and game logic.
-  - Supports Server-Sent Events (SSE) on `GET /mcp` for real-time notifications from the server.
-
-### Event-Driven Updates
-
-- `GameContext` uses Node.js `EventEmitter` to signal significant events, primarily `STATE_CHANGED`.
-- The `mcp-game-server.ts` (via `game-state-change.handler.ts`) listens for these events to perform MCP-specific actions, like creating or removing the `game_state` resource. This decouples the core game logic from the specifics of MCP resource management.
-- Changes to resource content (e.g., high scores updating, game state message changing) are signaled by calling `resource.update({})` on the respective resource object. The SDK then re-evaluates the resource's getter and sends a `resourceUpdated` notification if the content has changed.
+This architecture ensures that each user's UI state (e.g., which tools are enabled) is completely isolated, stateful, and managed dynamically, while the server itself remains scalable.
 
 ## Prerequisites
 
 - Node.js (v18.x or later recommended)
 - npm or yarn
+- Access to a Google Cloud project with Firestore enabled.
 
 ## Getting Started
 
@@ -127,7 +85,7 @@ This directory is responsible for bridging the game logic with the Model Context
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/portal-labs-infrastructure/number-guessing-game-mcp-server
-    cd mcp-number-guessing-game-server
+    cd number-guessing-game-mcp-server
     ```
 2.  **Install dependencies:**
     ```bash
@@ -136,10 +94,22 @@ This directory is responsible for bridging the game logic with the Model Context
     yarn install
     ```
 
-### Configuration (Optional)
+### Configuration
 
-- The server runs on port `8080` by default. This can be changed by renaming `.env.example` to `.env` and updating the PORT value.
-- No other external configuration (e.g., database) is required for this demo.
+1.  **Set up Google Cloud Authentication:** Ensure your environment is authenticated to your Google Cloud project. For local development, you can use the gcloud CLI:
+    ```bash
+    gcloud auth application-default login
+    ```
+2.  **Create a `.env` file:** Copy the example file.
+    ```bash
+    cp .env.example .env
+    ```
+3.  **Edit `.env`:** Fill in the required environment variables.
+    - `PORT`: The port for the server to run on (e.g., `8083`).
+    - `GCP_PROJECT_ID`: Your Google Cloud Project ID.
+    - `BASE_URL`: The public-facing URL of your server (e.g., `http://localhost:8083`).
+    - `OAUTH_ISSUER_URL`: The base URL of your OAuth provider.
+    - `DOCS_URL`: A link to your service's documentation.
 
 ## Running the Server
 
@@ -149,9 +119,7 @@ This directory is responsible for bridging the game logic with the Model Context
 npm run dev
 ```
 
-This will start the server with `nodemon`, which automatically reloads on file changes.
-
-### Production Mode (for production-like environment):
+### Production Mode:
 
 **Compile TypeScript:**
 
@@ -165,12 +133,7 @@ npm run build
 npm start
 ```
 
-You should see output indicating the server is running:
-
-```
-MCP Game Server (HTTP Stateful) listening on port 8080
-Root MCP endpoint available at /mcp (POST, GET, DELETE)
-```
+You should see output indicating the server is running and connected to Firestore.
 
 ## Interacting with the Server
 
@@ -181,88 +144,47 @@ We created [Portal One](https://portal.one), a web-based MCP client that support
 Just make sure the server can be accessed by the client. If you're running the server locally, you can use a tool like [ngrok](https://ngrok.com/) to expose it to the internet:
 
 ```bash
-ngrok http http://localhost:8080
+ngrok http http://localhost:8083
 ```
 
-See other clients that support dynamic MCP tools and resources (discovery) in the [MCP SDK Example Clinets](https://modelcontextprotocol.io/clients).
+See other clients that support dynamic MCP tools and resources (discovery) in the [MCP SDK Example Clients](https://modelcontextprotocol.io/clients).
 
 ## Project Structure
 
 ```
 number-guessing-game-mcp-server/
-├── build/ # Compiled JavaScript output
-├── node_modules/
-├── assets # Static assets served as resources with various mimeTypes
 ├── src/
 │ ├── controllers/
-│ │ └── mcpController.ts # Express controller for HTTP session & request handling
+│ │ └── mcpController.ts # Manages session lifecycles and creates entities on-demand
 │ ├── game/
-│ │ ├── commands/ # Command pattern implementations (StartGameCommand, etc.)
-│ │ │ ├── command.interface.ts
-│ │ │ └── ... (specific command files)
 │ │ ├── core/
-│ │ │ ├── game-context.ts # Central game logic coordinator, state manager
-│ │ │ └── game-types.ts # Core game data interfaces (ActiveGame, McpEntities)
-│ │ ├── states/ # State pattern implementations (LobbyState, PlayingState)
-│ │ │ ├── game-state.interface.ts
-│ │ │ └── ... (specific state files)
-│ │ └── utils/
-│ │   └── game-constants.ts # Game constants (MAX_ATTEMPTS, etc.)
-│ ├── mcp_setup/ # Logic for setting up MCP server, tools, resources
-│ │ ├── event_handlers/ # Handlers for GameContext events (e.g., state changes)
-│ │ │ ├── game-state-change.handler.ts
-│ │ │ └── index.ts
-│ │ ├── resources/ # Setup functions for MCP resources
-│ │ │ ├── setup-game-state-resource.ts
-│ │ │ ├── setup-highscores-resource.ts
-│ │ │ └── index.ts
-│ │ ├── tools/ # Setup functions for MCP tools
-│ │ │ ├── setup-guess-number-tool.ts
-│ │ │ ├── ... (other tool setup files)
-│ │ │ └── index.ts
-│ │ └── index.ts # Orchestrates creation of McpServer with game logic
-│ ├── index.ts # Main application entry point (Express server setup)
-│ └── routes/
-│   └── mcpRoutes.ts # Express routes for /mcp endpoint
-├── .gitignore
+│ │ │ ├── game-context.ts # Central game logic coordinator for a SINGLE session
+│ │ │ └── game-types.ts   # Core game data interfaces
+│ │ └── states/           # State pattern implementations (LobbyState, PlayingState)
+│ ├── mcp_setup.ts        # Creates the single, global McpServer instance
+│ ├── resources/          # Factory functions for creating MCP resources
+│ ├── services/
+│ │ └── firestore.service.ts # Firestore client initialization
+│ ├── tools/              # Factory functions for creating MCP tools
+│ ├── config.ts           # Environment variable configuration
+│ └── main.ts             # Main application entry point (Express server setup)
+├── .env.example
 ├── package.json
-├── package-lock.json
-├── README.md # This file
 └── tsconfig.json
 ```
 
 ## Key Concepts Demonstrated
 
-- **Model Context Protocol (MCP):** Core concepts like tools, resources, notifications, and client-server interaction.
-- **Dynamic Server Behavior:** How an MCP server can change its available tools, resources, and even tool schemas based on internal state or user interaction.
-- **State Pattern:** Managing complex state transitions and behaviors in a clean, organized way for the game flow.
-- **Command Pattern:** Decoupling the "request" of an action (tool call) from its "execution" (game logic).
-- **EventEmitter for Decoupling:** Using events to communicate between the game logic (`GameContext`) and the MCP setup layer, reducing direct dependencies.
-- **Stateful Services over HTTP:** Implementing persistent sessions using HTTP headers and server-side session management.
-- **Server-Sent Events (SSE):** Providing real-time, unidirectional communication from server to client for notifications.
-- **TypeScript Best Practices:** Using types for robust code, modular structure.
-- **JSON Resource Formatting:** Correctly providing JSON data as a Base64 encoded string in the `blob` field with `mimeType: "application/json"`.
-
-## Future Enhancements
-
-- Add more complex game mechanics.
-- Implement user authentication.
-- Persist high scores to a database.
-- Add more sophisticated error handling and reporting.
-- Write unit and integration tests.
+- **Dynamic, Session-Scoped MCP:** The core of this architecture. Tools and resources are not global; they are created and destroyed for each user session.
+- **Lifecycle Management:** Using transport hooks (`onsessioninitialized`, `onclose`) to manage the setup and teardown of session resources.
+- **Stateful Services over HTTP:** Implementing persistent, isolated user sessions over a stateless protocol.
+- **State Pattern:** Managing complex state transitions for each user's game flow.
+- **Firestore for State Persistence:** Decoupling the server's runtime from the game state, allowing for horizontal scaling and resilience.
+- **TypeScript Best Practices:** Using types for robust code in a real-world, scalable application structure.
 
 ## Contributing
 
-Contributions are welcome! If you have ideas for improvements, new features, or find any bugs, please feel free to:
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourFeature` or `bugfix/YourBugfix`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'Add some feature'`).
-5.  Push to the branch (`git push origin feature/YourFeature`).
-6.  Open a Pull Request.
-
-Please ensure your code adheres to the existing style and that any new features are well-documented.
+Contributions are welcome! If you have ideas for improvements, new features, or find any bugs, please feel free to open an issue or a pull request.
 
 ## License
 

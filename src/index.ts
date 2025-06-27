@@ -70,22 +70,11 @@ app.use(
   mcpRoutes,
 );
 
-// The old health check location is now removed from the bottom.
-// =================================================================
-// --- HEALTH CHECK ---
-// Define this FIRST, before any other routers.
-// =================================================================
 app.get('/', (req, res) => {
-  const sourceIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const statusToSend = 200;
-
-  console.log(
-    `Health check endpoint hit from IP: ${sourceIp}. Responding with status: ${statusToSend}`,
-  );
 
   res.status(statusToSend).send('OK');
 });
-// =================================================================
 
 app.listen(PORT, () => {
   const port = `MCP Game Server (HTTP Stateful) listening on port ${PORT}`;
