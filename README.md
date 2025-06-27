@@ -52,9 +52,9 @@ This project is intended as a learning resource and a practical example for buil
 
 The server follows a modern, scalable pattern where a central controller manages ephemeral, session-specific resources.
 
-1.  **Global Server (`src/mcp_setup.ts`):** A **single, global `McpServer`** instance is created when the application starts. It acts as a "blank slate" connection manager and does not contain any tools or resources itself.
+1.  **Global Server (`src/mcp_setup/index.ts`):** A **single, global `McpServer`** instance is created when the application starts. It acts as a "blank slate" connection manager and does not contain any tools or resources itself.
 
-2.  **HTTP Controller (`src/controllers/mcpController.ts`):** This is the brain of the application.
+2.  **HTTP Controller (`src/controllers/mcp.controller.ts`):** This is the brain of the application.
 
     - It handles all incoming HTTP requests to the `/mcp` endpoint.
     - When a new user connects, it creates a `StreamableHTTPServerTransport`.
@@ -62,9 +62,9 @@ The server follows a modern, scalable pattern where a central controller manages
 
 3.  **Session Initialization (`onsessioninitialized`):** When a user's transport is ready, the controller:
 
-    - Creates a **new, unique set of MCP entities** (tools and resources) for that user by calling the setup functions in `src/tools` and `src/resources`.
+    - Creates a **new, unique set of MCP entities** for that user by calling the setup functions in `src/mcp_setup/tools` and `src/mcp_setup/resources`.
     - Creates a **new `GameContext`** instance, linking it to the user's session ID and their unique MCP entities.
-    - Loads the user's state from Firestore and uses the State Pattern (`LobbyState` or `PlayingState`) to enable/disable the correct tools for their session.
+    - Loads the user's state from Firestore (via `GameSessionService`) and uses the State Pattern (`LobbyState` or `PlayingState`) to enable/disable the correct tools for their session.
 
 4.  **Session Destruction (`onclose`):** When a user disconnects, the controller:
     - **Unregisters and destroys** all tools and resources that were created for that specific user, preventing memory leaks.
@@ -137,40 +137,69 @@ You should see output indicating the server is running and connected to Firestor
 
 ## Interacting with the Server
 
-You'll need an MCP client that supports dynamic tools and resources (discovery).
+### Live Server
 
-We created [Portal One](https://portal.one), a web-based MCP client that supports dynamic tools and discovery. You can use it to test the game flow.
+You'll need an MCP client that supports the following capabilities:
 
-Just make sure the server can be accessed by the client. If you're running the server locally, you can use a tool like [ngrok](https://ngrok.com/) to expose it to the internet:
+- OAuth2 (with dynamic client registration)
+- Tool notifications
+- Resource notifications
+
+You can use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector), but it does not have Tool and Resource notifications so you have to manually refresh the tools and resources.
+
+You use the the [Portal One](https://portal.one) web client and find the server in the list of available MCP servers and click 'connect'.
+
+See other clients that support dynamic MCP tools and resources (discovery) in the [MCP SDK Example Clients](https://modelcontextprotocol.io/clients).
+
+### Local
+
+Make sure the server can be accessed by the client. If you're running the server locally, and using a web based client, you can use a tool like [ngrok](https://ngrok.com/) to expose the server to the internet:
 
 ```bash
 ngrok http http://localhost:8083
 ```
 
-See other clients that support dynamic MCP tools and resources (discovery) in the [MCP SDK Example Clients](https://modelcontextprotocol.io/clients).
+If you're using a client on localhost, you can connect directly to `http://localhost:8083/mcp`.
 
 ## Project Structure
 
 ```
-number-guessing-game-mcp-server/
-├── src/
-│ ├── controllers/
-│ │ └── mcpController.ts # Manages session lifecycles and creates entities on-demand
-│ ├── game/
-│ │ ├── core/
-│ │ │ ├── game-context.ts # Central game logic coordinator for a SINGLE session
-│ │ │ └── game-types.ts   # Core game data interfaces
-│ │ └── states/           # State pattern implementations (LobbyState, PlayingState)
-│ ├── mcp_setup.ts        # Creates the single, global McpServer instance
-│ ├── resources/          # Factory functions for creating MCP resources
-│ ├── services/
-│ │ └── firestore.service.ts # Firestore client initialization
-│ ├── tools/              # Factory functions for creating MCP tools
-│ ├── config.ts           # Environment variable configuration
-│ └── main.ts             # Main application entry point (Express server setup)
-├── .env.example
-├── package.json
-└── tsconfig.json
+src/
+├── config/
+│   └── index.ts                # Loads and exports environment variables
+├── controllers/
+│   └── mcp.controller.ts       # Manages session lifecycles and creates entities on-demand
+├── game/
+│   ├── commands/               # Command Pattern: Encapsulates user actions
+│   │   ├── command.interface.ts
+│   │   ├── give-up.command.ts
+│   │   ├── guess-number.command.ts
+│   │   └── start-game.command.ts
+│   ├── core/
+│   │   ├── game-context.ts       # Central game logic coordinator for a SINGLE session
+│   │   ├── game-session-service.ts # Handles all Firestore interactions (get/set state)
+│   │   ├── game-types.ts       # Core TypeScript interfaces for the game
+│   │   ├── resource-factory.ts # (Not used in current setup, but available)
+│   │   └── tool-factory.ts     # (Not used in current setup, but available)
+│   ├── states/                 # State Pattern: Manages game flow (Lobby, Playing)
+│   │   ├── game-state.interface.ts
+│   │   ├── lobby.state.ts
+│   │   └── playing.state.ts
+│   └── utils/
+│       └── game-constants.ts   # Shared game constants
+├── index.ts                    # Main application entry point (Express server setup)
+├── mcp_setup/
+│   ├── index.ts                # Creates the single, global McpServer instance
+│   ├── resources/              # Factory functions for creating MCP resources
+│   │   ├── index.ts            # Barrel file for exporting all resource setups
+│   │   └── ... (setup-banner-image-resource.ts, etc.)
+│   └── tools/                  # Factory functions for creating MCP tools
+│       ├── index.ts            # Barrel file for exporting all tool setups
+│       └── ... (setup-guess-number-tool.ts, etc.)
+├── routes/
+│   └── mcp.routes.ts           # Defines the Express routes for /mcp
+└── services/
+    └── firestore.service.ts    # Initializes the global Firestore client
 ```
 
 ## Key Concepts Demonstrated
