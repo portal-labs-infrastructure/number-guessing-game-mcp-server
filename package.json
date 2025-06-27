@@ -1,9 +1,9 @@
 {
   "name": "number-guessing-game-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "A toy MCP server that dynamically updates available tools and resources.",
   "scripts": {
-    "start": "node build/index.js",
+    "start": "node build/src/index.js",
     "build": "tsc",
     "dev": "nodemon"
   },

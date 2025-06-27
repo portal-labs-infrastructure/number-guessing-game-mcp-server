@@ -15,10 +15,6 @@ app.set('trust proxy', 1 /* number of proxies between user and server */);
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.get('/', (req, res) => {
-  res.status(200).send('OK');
-});
-
 const serverUrl = new URL('mcp', BASE_URL);
 const issuerUrl = new URL(OAUTH_ISSUER_URL);
 
@@ -73,6 +69,23 @@ app.use(
   }),
   mcpRoutes,
 );
+
+// The old health check location is now removed from the bottom.
+// =================================================================
+// --- HEALTH CHECK ---
+// Define this FIRST, before any other routers.
+// =================================================================
+app.get('/', (req, res) => {
+  const sourceIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const statusToSend = 200;
+
+  console.log(
+    `Health check endpoint hit from IP: ${sourceIp}. Responding with status: ${statusToSend}`,
+  );
+
+  res.status(statusToSend).send('OK');
+});
+// =================================================================
 
 app.listen(PORT, () => {
   const port = `MCP Game Server (HTTP Stateful) listening on port ${PORT}`;
