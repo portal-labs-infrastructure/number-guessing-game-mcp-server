@@ -23,6 +23,7 @@ import {
 // We assume this helper function will be created, similar to the benchmark server.
 // It should return the base options for constructing a new McpServer.
 import { createMcpServerOptions } from '../mcp_setup';
+import crypto from 'node:crypto';
 
 // =================================================================
 // --- Global State ---
@@ -78,7 +79,21 @@ const handleMcpRequest: RequestHandler = async (req, res) => {
       | string
       | undefined;
 
-    if (sessionIdFromHeader && activeTransports.has(sessionIdFromHeader)) {
+    if (sessionIdFromHeader && !activeTransports.has(sessionIdFromHeader)) {
+      // --- PATH FOR INVALID OR MISSING SESSIONS ---
+      // The session ID is provided but no transport exists for it.
+      console.warn(
+        `[Controller] Session ID ${sessionIdFromHeader} provided but no active transport found. Cleaning up...`,
+      );
+      destroySession(sessionIdFromHeader);
+
+      // Signals for the client to create a new session.
+      res.status(404).send('Invalid or missing session ID');
+      return;
+    } else if (
+      sessionIdFromHeader &&
+      activeTransports.has(sessionIdFromHeader)
+    ) {
       // --- PATH FOR EXISTING SESSIONS ---
       // A transport already exists, so we just retrieve it.
       transport = activeTransports.get(sessionIdFromHeader)!;
@@ -193,9 +208,9 @@ const handleMcpRequest: RequestHandler = async (req, res) => {
       // 5. Connect the server and transport. This "locks" the server's capabilities.
       await server.connect(transport);
     } else {
-      throw new Error(
-        'Invalid request: No active session and not an initialize request.',
-      );
+      // Signals for the client to create a new session.
+      res.status(400).send('Invalid or missing session ID');
+      return;
     }
 
     // 6. Handle the HTTP request. This will trigger the `onsessioninitialized` callback at the correct time.

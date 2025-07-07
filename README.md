@@ -52,7 +52,7 @@ This project is intended as a learning resource and a practical example for buil
 
 The server follows a modern, scalable pattern where a central controller manages ephemeral, session-specific resources.
 
-1.  **Global Server (`src/mcp_setup/index.ts`):** A **single, global `McpServer`** instance is created when the application starts. It acts as a "blank slate" connection manager and does not contain any tools or resources itself.
+1.  **Global Server Config (`src/mcp_setup/index.ts`):** A **McpServer** instance is created when the application starts. It acts as a "blank slate" connection manager and does not contain any tools or resources itself.
 
 2.  **HTTP Controller (`src/controllers/mcp.controller.ts`):** This is the brain of the application.
 
