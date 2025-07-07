@@ -9,8 +9,6 @@ import {
 } from '@modelcontextprotocol/sdk/types';
 import { Buffer } from 'buffer';
 
-// ... existing createGameToolHandler code ...
-
 // --- NEW RESOURCE FACTORY ---
 
 /**
@@ -42,13 +40,14 @@ export function createGameResourceHandler(
   ): Promise<ReadResourceResult> => {
     // 1. --- BOILERPLATE START ---
     const userId = mcpContext.authInfo?.extra?.user_id as string | undefined;
-    if (!userId) {
+    if (!userId || !mcpContext.sessionId) {
       // Or return a specific CallToolResult error
       throw new Error('Session ID is missing. Cannot execute tool.');
     }
 
     const gameContext = await GameContext.create(
       userId,
+      mcpContext.sessionId,
       dependencies.sessionService,
       dependencies.mcpEntities,
       dependencies.serverName,

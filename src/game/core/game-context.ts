@@ -16,16 +16,19 @@ export class GameContext {
   public highScores: HighScoreEntry[] = [];
 
   public readonly mcpEntities: McpEntities;
+  public readonly userId: string;
   public readonly sessionId: string;
   private readonly sessionService: GameSessionService;
   private readonly serverInstanceName: string;
 
   private constructor(
+    userId: string,
     sessionId: string,
     sessionService: GameSessionService,
     mcpEntities: McpEntities,
     serverInstanceName: string,
   ) {
+    this.userId = userId;
     this.sessionId = sessionId;
     this.sessionService = sessionService;
     this.mcpEntities = mcpEntities;
@@ -33,12 +36,14 @@ export class GameContext {
   }
 
   public static async create(
+    userId: string,
     sessionId: string,
     sessionService: GameSessionService,
     mcpEntities: McpEntities,
     serverInstanceName: string,
   ): Promise<GameContext> {
     const context = new GameContext(
+      userId,
       sessionId,
       sessionService,
       mcpEntities,

@@ -39,7 +39,7 @@ export function createGameToolHandler<T>(
   ): Promise<CallToolResult> => {
     // 1. --- BOILERPLATE START ---
     const userId = mcpContext.authInfo?.extra?.user_id as string | undefined;
-    if (!userId) {
+    if (!userId || !mcpContext.sessionId) {
       // Or return a specific CallToolResult error
       throw new Error('Session ID is missing. Cannot execute tool.');
     }
@@ -47,6 +47,7 @@ export function createGameToolHandler<T>(
     // Create the context for this specific request
     const gameContext = await GameContext.create(
       userId,
+      mcpContext.sessionId,
       dependencies.sessionService,
       dependencies.mcpEntities,
       dependencies.serverName,

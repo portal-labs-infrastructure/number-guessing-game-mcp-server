@@ -6,10 +6,16 @@ import { MAX_ATTEMPTS } from '../utils/game-constants';
 
 export class PlayingState implements IGameState {
   enter(context: GameContext): void {
-    if (context.mcpEntities.guessNumberTool) {
+    if (
+      context.mcpEntities.guessNumberTool &&
+      !context.mcpEntities.guessNumberTool.enabled
+    ) {
       context.mcpEntities.guessNumberTool.enable();
     }
-    if (context.mcpEntities.giveUpTool) {
+    if (
+      context.mcpEntities.giveUpTool &&
+      !context.mcpEntities.giveUpTool.enabled
+    ) {
       context.mcpEntities.giveUpTool.enable();
     }
 
@@ -28,10 +34,16 @@ export class PlayingState implements IGameState {
   }
 
   exit(context: GameContext): void {
-    if (context.mcpEntities.guessNumberTool) {
+    if (
+      context.mcpEntities.guessNumberTool &&
+      context.mcpEntities.guessNumberTool.enabled
+    ) {
       context.mcpEntities.guessNumberTool.disable();
     }
-    if (context.mcpEntities.giveUpTool) {
+    if (
+      context.mcpEntities.giveUpTool &&
+      context.mcpEntities.giveUpTool.enabled
+    ) {
       context.mcpEntities.giveUpTool.disable();
     }
     console.log(
@@ -102,11 +114,15 @@ export class PlayingState implements IGameState {
     if (gameOver) {
       await context.transitionTo(new LobbyState());
     } else {
-      context.updateGuessToolSchema(
-        game.minGuess,
-        game.maxGuess,
-        game.attemptsLeft,
-      );
+      // NEW DIAGNOSTIC CODE:
+      const tool = context.mcpEntities.guessNumberTool;
+      if (tool) {
+        context.updateGuessToolSchema(
+          game.minGuess,
+          game.maxGuess,
+          game.attemptsLeft,
+        );
+      }
     }
     return { content: [{ type: 'text', text: message }] };
   }

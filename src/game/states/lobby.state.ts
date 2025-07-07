@@ -10,13 +10,22 @@ import { CommandResult } from '../core/game-types';
 
 export class LobbyState implements IGameState {
   async enter(context: GameContext): Promise<void> {
-    if (context.mcpEntities.startGameTool) {
+    if (
+      context.mcpEntities.startGameTool &&
+      !context.mcpEntities.startGameTool.enabled
+    ) {
       context.mcpEntities.startGameTool.enable();
     }
-    if (context.mcpEntities.guessNumberTool) {
+    if (
+      context.mcpEntities.guessNumberTool &&
+      context.mcpEntities.guessNumberTool.enabled
+    ) {
       context.mcpEntities.guessNumberTool.disable();
     }
-    if (context.mcpEntities.giveUpTool) {
+    if (
+      context.mcpEntities.giveUpTool &&
+      context.mcpEntities.giveUpTool.enabled
+    ) {
       context.mcpEntities.giveUpTool.disable();
     }
     // NEW: Explicitly clear the game state in Firestore when entering the lobby.
@@ -27,7 +36,10 @@ export class LobbyState implements IGameState {
   }
 
   exit(context: GameContext): void {
-    if (context.mcpEntities.startGameTool) {
+    if (
+      context.mcpEntities.startGameTool &&
+      context.mcpEntities.startGameTool.enabled
+    ) {
       context.mcpEntities.startGameTool.disable();
     }
     console.log(

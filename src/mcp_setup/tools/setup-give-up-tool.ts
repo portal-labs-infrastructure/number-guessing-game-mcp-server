@@ -21,7 +21,7 @@ export function setupGiveUpTool(
     return cmd.execute();
   };
 
-  return server.registerTool(
+  const tool = server.registerTool(
     'give_up',
     {
       title: 'Give Up',
@@ -34,4 +34,7 @@ export function setupGiveUpTool(
       giveUpLogic,
     ),
   );
+
+  tool.disable(); // Start disabled, enabled in PlayingState
+  return tool;
 }

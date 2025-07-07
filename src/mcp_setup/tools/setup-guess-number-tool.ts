@@ -29,7 +29,7 @@ export function setupGuessNumberTool(
     return cmd.execute();
   };
 
-  return server.registerTool(
+  const tool = server.registerTool(
     'guess_number',
     {
       title: 'Make a Guess',
@@ -42,4 +42,7 @@ export function setupGuessNumberTool(
       guessNumberLogic,
     ),
   );
+
+  tool.disable(); // Start disabled, enabled in PlayingState
+  return tool;
 }

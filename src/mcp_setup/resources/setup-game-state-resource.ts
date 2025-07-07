@@ -21,7 +21,7 @@ export function setupGameStateResource(
     return gameContext.getGameStateUIDataForResource();
   };
 
-  return server.resource(
+  const resource = server.resource(
     'game_state',
     resourceUriString,
     { description: 'Current game state data for your session.' },
@@ -31,4 +31,7 @@ export function setupGameStateResource(
       gameStateLogic,
     ),
   );
+
+  resource.disable(); // Start disabled, enabled in LobbyState
+  return resource;
 }

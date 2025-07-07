@@ -28,7 +28,7 @@ export function setupStartGameTool(
     return cmd.execute();
   };
 
-  return server.registerTool(
+  const tool = server.registerTool(
     'start_game',
     {
       title: 'Start Game',
@@ -43,4 +43,7 @@ export function setupStartGameTool(
       startGameLogic,
     ),
   );
+
+  tool.disable(); // Start disabled, enabled in LobbyState
+  return tool;
 }

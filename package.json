@@ -4,7 +4,7 @@
   "description": "A toy MCP server that dynamically updates available tools and resources.",
   "scripts": {
     "start": "node build/src/index.js",
-    "build": "tsc",
+    "build": "rimraf build && tsc",
     "dev": "nodemon"
   },
   "author": "",
@@ -15,6 +15,7 @@
     "dotenv": "^16.4.5",
     "nodemon": "^3.1.4",
     "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2"
   },
   "dependencies": {
